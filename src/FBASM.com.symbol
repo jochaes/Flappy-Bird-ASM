@@ -1,0 +1,15 @@
+< THE SYMBOL TABLE >  FBASM.com  --  emu8086 assembler version: 4.05 
+===================================================================================================
+Name                     	Offset    	Size      	Type      	Segment   
+===================================================================================================
+MSG                      	00102     	1         	VAR       	(NOSEG)   
+CODE                     	0011D     	-1        	LABEL     	(NOSEG)   
+INITVIDEO                	00120     	-1        	NEAR      	(NOSEG)   
+PINTARPANTALLA           	0012B     	-1        	NEAR      	(NOSEG)   
+CIELO                    	00131     	-1        	LABEL     	(NOSEG)   
+SUELO                    	0013A     	-1        	LABEL     	(NOSEG)   
+MAIN                     	00141     	-1        	NEAR      	(NOSEG)   
+===================================================================================================
+[ 11/14/2022  --  12:38:58 PM ] 
+< END >
+ 

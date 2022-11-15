@@ -1,0 +1,57 @@
+.model tiny
+
+.data
+msg db "Proyecto Flapy Bird!!!!!",10,13,"$"
+.code
+call main
+initvideo proc
+mov AX,0X0013
+int 10h
+mov AX,0xA000
+mov DS,AX
+ret
+
+endp
+
+pintarpantalla proc
+mov di,0
+mov cx,48000
+cielo:
+mov [di],53
+inc di
+loop cielo
+
+mov cx,16000
+suelo:
+mov [di],67
+inc di
+loop suelo
+
+ret
+
+endp
+
+
+
+main proc
+call initvideo
+call pintarpantalla
+
+;Espera letra
+mov ah,0x10
+int 16h
+
+;regresa a modo texto
+mov AX,0x0003
+int 10h
+
+;regresa control
+mov AX,0x4C00
+int 21h
+ret
+endp
+end
+
+
+
+; [SOURCE]: C:\emu8086\MyBuild\Flappy-Bird-ASM\src\FBASM.asm
