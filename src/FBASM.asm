@@ -2,14 +2,16 @@
 
 data segment
     ancho dw 320
+    largo dw 200
     
-    arb1_x dw ?
-    arb1_y dw ?
-    arb1_w dw ?
-    arb1_h dw ?
-    arb1_name db "bird.img",0
-    arb1_img db 533 dup(?) 
-    arb1_v dw 3
+    bird_x dw ?
+    bird_y dw ?
+    bird_w dw ?
+    bird_h dw ?
+    bird_name db "bird.img",0
+    bird_img db 533 dup(?) 
+    bird_v dw 1
+    bird_j dw 12
     
     filename_dir dw ?
     w_dir dw ?
@@ -200,28 +202,29 @@ code segment
         MOV AH,00h
         int 16h
          
-        ;verifcar que sea espacio 
-        cmp al,20h; "espacio"   
-        
-         
+        ;verifcar que sea espacio
+        cmp al,20h; "espacio"
         JE pressSpace
-                                    
+            
         ;metodo para que el pajaro salte
-        pressSpace:   
-            DIBUJAR_RECT_DATOS arb1_x, arb1_y, arb1_w, arb1_h, 54
-            sub ax, arb1_v
-            cmp ax, 0
-            jge dibujar   
-            mov ax, ancho
-            sub ax, arb1_w
+        pressSpace:
+            DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54
+            mov ax, bird_y
+            sub ax, bird_j
+            cmp ax,0
+            jge subir 
+              
             subir:
-                mov arb1_y, ax
-                lea ax, arb1_y
+                mov bird_y, ax
+                lea ax, bird_y
                 mov y_dir, ax
-                lea ax, arb1_x
-                mov y_dir, ax
+                lea ax, bird_x
+                mov x_dir, ax
                 call draw_img 
-                
+        
+        mov ah, 01h
+        int 16h
+        jz dibujar_escena  
              
     endp
 start:
@@ -238,22 +241,22 @@ start:
     mov ax, 0x0013
     int 10h
     
-    lea ax, arb1_name
+    lea ax, bird_name
     mov filename_dir, ax
     
-    lea ax, arb1_w
+    lea ax, bird_w
     mov w_dir, ax
     
-    lea ax, arb1_h
+    lea ax, bird_h
     mov h_dir, ax
     
-    lea ax, arb1_img
+    lea ax, bird_img
     mov buff_dir, ax
     
     call leer_imagen
     
-    mov arb1_x, 270
-    mov arb1_y, 50
+    mov bird_x, 100
+    mov bird_y, 50
     DIBUJAR_RECT_DATOS 0, 0, ancho, 150, 54 
     DIBUJAR_RECT_DATOS 0, 150, ancho, 50, 10
     dibujar_escena:
@@ -275,22 +278,23 @@ start:
         
         
         ;primero borrar la imagen anterior
-        DIBUJAR_RECT_DATOS arb1_x, arb1_y, arb1_w, arb1_h, 54
-        mov ax, arb1_x
-        add ax, arb1_v
+        DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54
+        DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54
+        mov ax, bird_y
+        add ax, bird_v
         cmp ax, 0
         jge dibujar   
         mov ax, ancho
-        sub ax, arb1_w
+        sub ax, bird_
         dibujar:
-            mov arb1_x, ax
-            lea ax, arb1_x
-            mov x_dir, ax
-            lea ax, arb1_y
+            mov bird_y, ax
+            lea ax, bird_y
             mov y_dir, ax
+            lea ax, bird_x
+            mov x_dir, ax
+            
             call draw_img 
-        
-
+                    
         mov ah, 01h
         int 16h
         jz dibujar_escena 
