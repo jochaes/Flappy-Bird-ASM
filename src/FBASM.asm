@@ -31,12 +31,21 @@ data segment
     y dw ?
     c db ? 
     
+    ;movimientoObs
+    pipe_x dw ?
+    pipe_y dw ?
+    
     ;obstaculos
-    Pw dw ?
+    Pw dw ?  
     Ph dw ?
     Px dw ?
     Py dw ?
-    Pc db ?
+    Pl dw ?
+    Pc db ? 
+    
+    ;apertura
+    apx dw ?
+    apy dw ?
 ends
 
 stack segment
@@ -157,15 +166,19 @@ code segment
     endp 
      
      
-    DIBUJAR_OBSTACULOS_DATOS MACRO xm,ym,hm,cm
+    DIBUJAR_OBSTACULOS_DATOS MACRO xm,ym,lm,cm
         mov ax, xm
         mov Px, ax
+        mov pipe_x,ax
         mov ax, ym
         mov Py, ax
-        mov ax, 40
+        mov pipe_y,ax
+        mov ax, 30
         mov Pw, ax
-        mov ax, hm
+        mov ax, 150
         mov Ph, ax
+        mov ax,lm
+        mov Pl,ax
         mov al, cm
         mov Pc, al
         call draw_obstaculos
@@ -176,10 +189,17 @@ code segment
        ;requiere un w, h, x, y, c
         ;bx <- contador para medir ancho
         ;cuando se alcance el ancho -> se cambia de linea
-        ;cuando se hayan pintado todos los pixeles se termina
+        ;cuando se hayan pintado todos los pixeles se termina 
+        mov ax,Py
+        mov apy,ax
+        
+        mov ax,Px
+        mov apx,ax
+        
+        
         mov bx, 0
-        mov ax, w
-        mul h
+        mov ax, Pw
+        mul Ph
         mov cx, ax
         ciclo_obst:
             ;calcular donde pintar
@@ -187,20 +207,62 @@ code segment
             ; 320 x 200
             ; recorrer el rectangulo por ancho
             ; 
-            mov ax, y
+            mov ax, Py
             mul ancho
-            add ax, x
+            add ax, Px
             add ax, bx
             mov di, ax
-            mov al, c
+            mov al, Pc
             mov es:[di], al
             inc bx
-            cmp bx, w
+            cmp bx, Pw
             jne sig_px_obst
             mov bx, 0
-            inc y
+            inc Py
             sig_px_obst:
-                loop ciclo_obst 
+                loop ciclo_obst
+        
+        
+        ;requiere un largo(w)
+        ;requiere un w, h, x, y, c
+        ;bx <- contador para medir ancho
+        ;cuando se alcance el ancho -> se cambia de linea
+        ;cuando se hayan pintado todos los pixeles se termina
+        
+        ;Calculamos size de la apertura
+        mov bx, 0 
+        
+        mov ax,Pl
+        mov apy,ax
+        
+        mov ax,bird_h
+        add ax,10
+        mov Ph,ax  
+        mov ax, Pw
+        mul Ph
+        mov cx, ax 
+        
+        ciclo_apertura:
+            ;calcular donde pintar
+            ;posicion de memoria grafica
+            ; 320 x 200
+            ; recorrer el rectangulo por ancho
+            ; 
+            mov ax, apy
+            mul ancho
+            add ax, apx
+            add ax, bx
+            mov di, ax
+            mov al, 54
+            mov es:[di], al
+            inc bx
+            cmp bx, Pw
+            jne sig_px_apertura
+            mov bx, 0
+            inc apy
+            sig_px_apertura:
+                loop ciclo_apertura
+        
              
         ret    
             
@@ -270,6 +332,7 @@ code segment
         ;metodo para que el pajaro salte
         pressSpace:
             DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54
+            
             mov ax, bird_y
             sub ax, bird_j
             add ax,bird_h
@@ -278,7 +341,6 @@ code segment
             add ax,bird_j   
             subir:
                 sub ax,bird_h 
-                DIBUJAR_OBSTACULOS_DAT0S 220,100,50,3
                 mov bird_y, ax
                 lea ax, bird_y
                 mov y_dir, ax
@@ -317,12 +379,13 @@ start:
     lea ax, bird_img
     mov buff_dir, ax
     
-    call leer_imagen
+    call leer_imagen                       
     
     mov bird_x, 100
     mov bird_y, 50
     DIBUJAR_RECT_DATOS 0, 0, ancho, 150, 54 
-    DIBUJAR_RECT_DATOS 0, 150, ancho, 50, 10  
+    DIBUJAR_RECT_DATOS 0, 150, ancho, 50, 10 
+    DIBUJAR_OBSTACULOS_DATOS 220,0,40,3 
     dibujar_escena:
         ;INT 21h / AH=0Ch - flush keyboard buffer and read standard input.
         mov ah, 0ch
@@ -342,7 +405,11 @@ start:
         
         
         ;primero borrar la imagen anterior  
-        DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54 
+        DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54
+        DIBUJAR_RECT_DATOS Px, Py, Pw, Ph, 54 
+        
+        
+        ;Movimiento pajaro
         mov ax, bird_y
         add ax, bird_v 
         add ax,bird_h
@@ -358,6 +425,23 @@ start:
                 mov x_dir, ax
                 call draw_img  
         
+        ;Movimiento arbol
+        
+        mov ax, Px
+        sub ax,bird_v 
+        add ax,Pw
+        cmp ax,0
+        jle moverObstaculo
+        mov ax,ancho
+        sub ax,Pw                        
+            moverObstaculo:
+                DIBUJAR_OBSTACULOS_DATOS Px,Py,40,3
+                
+                
+                   
+        
+        
+        ;Otras verificaciones    
         mov ah, 01h
         int 16h
         jz dibujar_escena 
