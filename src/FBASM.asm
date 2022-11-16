@@ -1,5 +1,5 @@
 ; multi-segment executable file template.
-
+; mount c c:\emu8086\mybuild
 data segment
     ancho dw 320
     largo dw 200
@@ -189,8 +189,9 @@ code segment
        ;requiere un w, h, x, y, c
         ;bx <- contador para medir ancho
         ;cuando se alcance el ancho -> se cambia de linea
-        ;cuando se hayan pintado todos los pixeles se termina 
-        mov ax,Py
+        ;cuando se hayan pintado todos los pixeles se termina
+
+        mov ax,Py      
         mov apy,ax
         
         mov ax,Px
@@ -222,7 +223,7 @@ code segment
             sig_px_obst:
                 loop ciclo_obst
         
-        
+   
         ;requiere un largo(w)
         ;requiere un w, h, x, y, c
         ;bx <- contador para medir ancho
@@ -236,7 +237,8 @@ code segment
         mov apy,ax
         
         mov ax,bird_h
-        add ax,10
+        add ax,10  
+        
         mov Ph,ax  
         mov ax, Pw
         mul Ph
@@ -261,13 +263,8 @@ code segment
             mov bx, 0
             inc apy
             sig_px_apertura:
-                loop ciclo_apertura
-        
-             
+                loop ciclo_apertura  
         ret    
-            
-       
-       
     endp
     
     draw_img proc
@@ -386,6 +383,8 @@ start:
     DIBUJAR_RECT_DATOS 0, 0, ancho, 150, 54 
     DIBUJAR_RECT_DATOS 0, 150, ancho, 50, 10 
     DIBUJAR_OBSTACULOS_DATOS 220,0,40,3 
+   
+    
     dibujar_escena:
         ;INT 21h / AH=0Ch - flush keyboard buffer and read standard input.
         mov ah, 0ch
@@ -401,12 +400,12 @@ start:
             int 21h
             cmp dl, ultimo_s
             je esperar
-        
-        
+               
         
         ;primero borrar la imagen anterior  
         DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54
-        DIBUJAR_RECT_DATOS Px, Py, Pw, Ph, 54 
+        ;DIBUJAR_RECT_DATOS 0, 0, ancho, 150, 54              
+        DIBUJAR_OBSTACULOS_DATOS Px,0,40,54
         
         
         ;Movimiento pajaro
@@ -425,22 +424,20 @@ start:
                 mov x_dir, ax
                 call draw_img  
         
-        ;Movimiento arbol
-        
+        ;Movimiento Obstaculo
+        xor ax,ax 
+        mov Py,ax
         mov ax, Px
-        sub ax,bird_v 
-        add ax,Pw
+        dec ax
+        mov Px, ax 
+        ;add ax,Pw
         cmp ax,0
-        jle moverObstaculo
-        mov ax,ancho
-        sub ax,Pw                        
+        jge moverObstaculo
+;        mov ax,ancho
+;        sub ax,Pw                        
             moverObstaculo:
                 DIBUJAR_OBSTACULOS_DATOS Px,Py,40,3
-                
-                
-                   
-        
-        
+               
         ;Otras verificaciones    
         mov ah, 01h
         int 16h
