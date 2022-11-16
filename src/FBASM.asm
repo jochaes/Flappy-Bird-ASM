@@ -432,9 +432,10 @@ start:
         mov Px, ax 
         ;add ax,Pw
         cmp ax,0
-        jge moverObstaculo
-;        mov ax,ancho
-;        sub ax,Pw                        
+        jg moverObstaculo
+        mov ax, ancho
+        sub ax,Pw
+        mov Px,ax                        
             moverObstaculo:
                 DIBUJAR_OBSTACULOS_DATOS Px,Py,40,3
                
