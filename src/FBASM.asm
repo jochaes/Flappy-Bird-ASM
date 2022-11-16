@@ -29,7 +29,14 @@ data segment
     h dw ?
     x dw ?
     y dw ?
-    c db ?
+    c db ? 
+    
+    ;obstaculos
+    Pw dw ?
+    Ph dw ?
+    Px dw ?
+    Py dw ?
+    Pc db ?
 ends
 
 stack segment
@@ -102,6 +109,7 @@ code segment
 	    ok:
 	ret    
     endp 
+    
     DIBUJAR_RECT_DATOS MACRO xm, ym, wm, hm, cm
         mov ax, xm
         mov x, ax
@@ -146,7 +154,60 @@ code segment
                 loop ciclo_rect 
              
         ret    
+    endp 
+     
+     
+    DIBUJAR_OBSTACULOS_DATOS MACRO xm,ym,hm,cm
+        mov ax, xm
+        mov Px, ax
+        mov ax, ym
+        mov Py, ax
+        mov ax, 40
+        mov Pw, ax
+        mov ax, hm
+        mov Ph, ax
+        mov al, cm
+        mov Pc, al
+        call draw_obstaculos
+    ENDM
+    
+    draw_obstaculos proc
+       ;requiere un largo(w)
+       ;requiere un w, h, x, y, c
+        ;bx <- contador para medir ancho
+        ;cuando se alcance el ancho -> se cambia de linea
+        ;cuando se hayan pintado todos los pixeles se termina
+        mov bx, 0
+        mov ax, w
+        mul h
+        mov cx, ax
+        ciclo_obst:
+            ;calcular donde pintar
+            ;posicion de memoria grafica
+            ; 320 x 200
+            ; recorrer el rectangulo por ancho
+            ; 
+            mov ax, y
+            mul ancho
+            add ax, x
+            add ax, bx
+            mov di, ax
+            mov al, c
+            mov es:[di], al
+            inc bx
+            cmp bx, w
+            jne sig_px_obst
+            mov bx, 0
+            inc y
+            sig_px_obst:
+                loop ciclo_obst 
+             
+        ret    
+            
+       
+       
     endp
+    
     draw_img proc
         ;usa los valores de las direcciones de memoria
         ;para pintar las imagenes
@@ -211,10 +272,13 @@ code segment
             DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54
             mov ax, bird_y
             sub ax, bird_j
-            cmp ax,0
-            jge subir 
-              
+            add ax,bird_h
+            cmp ax,bird_h
+            jge subir
+            add ax,bird_j   
             subir:
+                sub ax,bird_h 
+                DIBUJAR_OBSTACULOS_DAT0S 220,100,50,3
                 mov bird_y, ax
                 lea ax, bird_y
                 mov y_dir, ax
@@ -258,7 +322,7 @@ start:
     mov bird_x, 100
     mov bird_y, 50
     DIBUJAR_RECT_DATOS 0, 0, ancho, 150, 54 
-    DIBUJAR_RECT_DATOS 0, 150, ancho, 50, 10
+    DIBUJAR_RECT_DATOS 0, 150, ancho, 50, 10  
     dibujar_escena:
         ;INT 21h / AH=0Ch - flush keyboard buffer and read standard input.
         mov ah, 0ch
@@ -277,9 +341,8 @@ start:
         
         
         
-        ;primero borrar la imagen anterior
-        DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54
-        DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54
+        ;primero borrar la imagen anterior  
+        DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54 
         mov ax, bird_y
         add ax, bird_v 
         add ax,bird_h
