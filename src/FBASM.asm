@@ -281,20 +281,20 @@ start:
         DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54
         DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54
         mov ax, bird_y
-        add ax, bird_v
-        cmp ax, 0
-        jge dibujar   
-        mov ax, ancho
-        sub ax, bird_
-        dibujar:
-            mov bird_y, ax
-            lea ax, bird_y
-            mov y_dir, ax
-            lea ax, bird_x
-            mov x_dir, ax
-            
-            call draw_img 
-                    
+        add ax, bird_v 
+        add ax,bird_h
+        cmp ax,150
+        jle mover
+        sub ax,bird_v   
+            mover:
+                sub ax,bird_h
+                mov bird_y, ax
+                lea ax, bird_y
+                mov y_dir, ax
+                lea ax, bird_x
+                mov x_dir, ax
+                call draw_img  
+        
         mov ah, 01h
         int 16h
         jz dibujar_escena 
