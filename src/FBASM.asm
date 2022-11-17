@@ -350,6 +350,96 @@ code segment
         jz dibujar_escena  
              
     endp
+    
+    sleep proc 
+        PUSH AX
+        PUSH CX
+        PUSH DX
+        
+        ;INT 21h / AH=2Ch - get system time;
+        ;return: CH = hour. CL = minute. DH = second. DL = 1/100 seconds.
+        mov ah, 0x2C
+        int 21h
+        mov ultimo_s, dL
+        ;add ultimo_s, 2 
+        esperar:
+            int 21h
+            cmp dl, ultimo_s
+            je esperar
+        
+        POP DX
+        POP CX
+        POP AX
+        RET
+    ENDP
+    
+    ;Revizar si el pajarito pega con el tubo 
+    rev_col proc
+        PUSH AX
+        PUSH BX
+        
+        mov ax, bird_y
+        add ax, bird_v 
+        add ax,bird_h
+        cmp ax,140
+        jle salga
+        
+       choque:
+        ;activar modo text
+        mov ax, 0x0003
+        int 10h
+        mov ax, 4c00h ; exit to operating system.
+        int 21h     
+        
+        salga:
+         
+        
+;        ;Reviza la colision superior izquierda
+;        suiz:
+;        mov ax, bird_x
+;        add ax, bird_w
+;        cmp ax, Px
+;        jl salga
+;        ;Si es mayor hay que ver si esta entre [Px, Px+30]
+;        mov bx, Px
+;        add bx, 30
+;        cmp ax,bx
+;        jg salga
+;        ;Aca sabemos que esta entre [Px, Px+30]
+;        ;Entonces hay que ver si colisiona arriba o abajo
+;        xor ax,ax
+;        xor bx,bx
+;        mov bx, Pl
+;        mov ax, bird_y
+;        cmp ax,bx
+;        jl verabj
+;        jmp choque 
+;        ;Si es mayor, hay que ver 
+;        
+;        ;Verifica si choca abajo
+;        verabj:
+;        xor ax,ax
+;        xor bx,x
+;        mov bx,Pl
+;        add bx,bird_h
+;        add bx,10
+;        mov ax, bird_y
+;        cmp ax,bx
+;        jg salga
+;        choque:
+;        ;activar modo text
+;        mov ax, 0x0003
+;        int 10h
+;        mov ax, 4c00h ; exit to operating system.
+;        int 21h    
+;        
+;        salga:
+        
+        POP BX
+        POP AX
+        RET 
+    ENDP 
+ 
 start:
 ; set segment registers:
     ; set segment registers:
@@ -391,21 +481,13 @@ start:
         mov al, 0
         int 21h
         
-        ;INT 21h / AH=2Ch - get system time;
-        ;return: CH = hour. CL = minute. DH = second. DL = 1/100 seconds.  
-        mov ah, 0x2C
-        int 21h
-        mov ultimo_s, dl
-        esperar:
-            int 21h
-            cmp dl, ultimo_s
-            je esperar
-               
+        call rev_col
+        call sleep
         
-        ;primero borrar la imagen anterior  
+        ;primero borrar la imagen anterior
         DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54
-        ;DIBUJAR_RECT_DATOS 0, 0, ancho, 150, 54              
-        DIBUJAR_OBSTACULOS_DATOS Px,0,40,54
+        ;DIBUJAR_RECT_DATOS 0, 0, ancho, 150, 54
+        DIBUJAR_OBSTACULOS_DATOS Px,0,Pl,54
         
         
         ;Movimiento pajaro
@@ -435,9 +517,12 @@ start:
         jg moverObstaculo
         mov ax, ancho
         sub ax,Pw
-        mov Px,ax                        
+        mov Px,ax
+        ;Random del PL
+        mov ax, 10
+        mov Pl, ax                        
             moverObstaculo:
-                DIBUJAR_OBSTACULOS_DATOS Px,Py,40,3
+                DIBUJAR_OBSTACULOS_DATOS Px,Py,Pl,3
                
         ;Otras verificaciones    
         mov ah, 01h
