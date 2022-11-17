@@ -46,6 +46,9 @@ data segment
     ;apertura
     apx dw ?
     apy dw ?
+    
+    hrt dw ? ;3 Vidas
+    scr dw ? ;Score
 ends
 
 stack segment
@@ -196,7 +199,9 @@ code segment
         mov apy,ax
         
         mov ax,Px
-        mov apx,ax
+        mov apx,ax 
+        
+        
         
         
         mov bx, 0
@@ -217,6 +222,7 @@ code segment
             add dx, bird_h
             add dx, 10
             cmp ax, dx 
+            
             jg verde:    ;Si es mayor que PL + bird_h +10 lo pinta verde
             mov Pc,54    ;Si no, lo pinta azul
             jmp seguir
@@ -444,7 +450,9 @@ code segment
         mov ax, bird_y
         cmp ax,bx
         jl salga
+        
         choque:
+        
         ;activar modo text
         mov ax, 0x0003
         int 10h
@@ -452,7 +460,6 @@ code segment
         int 21h    
         
         salga:
-        
         POP BX
         POP AX
         RET 
@@ -556,8 +563,7 @@ start:
         cmp al, 'q'
         jne  dibujar_escena
         
-        
-    
+ 
     
     ; wait for any key....    
     mov ah, 0x10
