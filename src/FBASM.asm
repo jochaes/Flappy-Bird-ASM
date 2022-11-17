@@ -47,8 +47,13 @@ data segment
     apx dw ?
     apy dw ?
     
-    hrt dw ? ;3 Vidas
-    scr dw ? ;Score
+    ;Score
+    hrt dw 4 ;3 Vidas
+    scr dw 0 ;Score
+    choquef db 0 ;Si hay Colision
+    choqueseg db ?  
+    ctrSeg    dw ?
+    coloIn    db 54
 ends
 
 stack segment
@@ -56,7 +61,10 @@ stack segment
 ends
 
 code segment
-    jmp start
+    jmp start                                               
+    
+;********************************************************   
+;Procedimiento que lee la informacion de la imagen
     leer_imagen proc   
         ;INT 21h / AH= 3Dh - open existing file.
         mov al, 0
@@ -121,7 +129,13 @@ code segment
 	    ok:
 	ret    
     endp 
+;########################################################    
     
+                                            
+                                            
+;********************************************************     
+;********************************************************
+;Macro y  Procedimiento que dibujan secciones de la pantalla   
     DIBUJAR_RECT_DATOS MACRO xm, ym, wm, hm, cm
         mov ax, xm
         mov x, ax
@@ -134,7 +148,9 @@ code segment
         mov al, cm
         mov c, al
         call draw_rect
-    ENDM
+    ENDM 
+    
+    ;Procedimiento que dibuja en pantalla
     draw_rect proc
         ;requiere un w, h, x, y, c
         ;bx <- contador para medir ancho
@@ -167,8 +183,13 @@ code segment
              
         ret    
     endp 
-     
-     
+;########################################################    
+    
+                                            
+                                            
+;********************************************************     
+;********************************************************
+;Macro y  Procedimiento que dibuja obstaculos en pantalla     
     DIBUJAR_OBSTACULOS_DATOS MACRO xm,ym,lm,cm
         mov ax, xm
         mov Px, ax
@@ -185,8 +206,10 @@ code segment
         mov al, cm
         mov Pc, al
         call draw_obstaculos
-    ENDM
-    
+    ENDM   
+                                        
+                                            
+    ;Procedimiento para dibujar Obstaculos
     draw_obstaculos proc
         push DX
        ;requiere un largo(w)
@@ -244,52 +267,15 @@ code segment
             
             sig_px_obst:
                 loop ciclo_obst
-        
-   
-        ;requiere un largo(w)
-        ;requiere un w, h, x, y, c
-        ;bx <- contador para medir ancho
-        ;cuando se alcance el ancho -> se cambia de linea
-        ;cuando se hayan pintado todos los pixeles se termina
-        
-        ;;Calculamos size de la apertura
-;        mov bx, 0 
-;        
-;        mov ax,Pl
-;        mov apy,ax
-;        
-;        mov ax,bird_h
-;        add ax,10  
-;        
-;        mov Ph,ax  
-;        mov ax, Pw
-;        mul Ph
-;        mov cx, ax 
-;        
-;        ciclo_apertura:
-;            ;calcular donde pintar
-;            ;posicion de memoria grafica
-;            ; 320 x 200
-;            ; recorrer el rectangulo por ancho
-;            ; 
-;            mov ax, apy
-;            mul ancho
-;            add ax, apx
-;            add ax, bx
-;            mov di, ax
-;            mov al, 54
-;            mov es:[di], al
-;            inc bx
-;            cmp bx, Pw
-;            jne sig_px_apertura
-;            mov bx, 0
-;            inc apy
-;            sig_px_apertura:
-;                loop ciclo_apertura
         pop DX  
         ret    
     endp
+;########################################################    
     
+                                            
+                                            
+;********************************************************
+;Procedimiento que dibuja la imagen del bird    
     draw_img proc
         ;usa los valores de las direcciones de memoria
         ;para pintar las imagenes
@@ -394,9 +380,13 @@ code segment
         POP CX
         POP AX
         RET
-    ENDP
+    ENDP                                                 
+;########################################################    
     
-    ;Revizar si el pajarito pega con el tubo 
+    
+;********************************************************
+;Procedimiento que revisa los eventos de choque con los pipes 
+ 
     rev_col proc
         PUSH AX
         PUSH BX
@@ -428,6 +418,7 @@ code segment
         mov bx, Px
         add bx, 30
         cmp ax,bx
+        je sumPto
         jg salga
         ;Aca sabemos que esta entre [Px, Px+30]
         ;Entonces hay que ver si colisiona arriba o abajo
@@ -452,19 +443,32 @@ code segment
         jl salga
         
         choque:
+        ;Decrementar 1 vida
+        inc choquef    ;Activa la Bandera de Choque
+        mov ctrSeg, 40 ;Va a esperar 2 segundos antes de volver a revizar la colision 
+        dec hrt        ;Decrementa 1 Vida 
+        jnz salga
         
+        ;Pantalla de Score
         ;activar modo text
         mov ax, 0x0003
         int 10h
         mov ax, 4c00h ; exit to operating system.
-        int 21h    
+        int 21h      
+        
+        jmp salga
+        ;Sumar un punto al Score
+        sumPto:
+        inc scr
         
         salga:
         POP BX
         POP AX
         RET 
     ENDP 
- 
+;########################################################
+                                                         
+                                                         
 start:
 ; set segment registers:
     ; set segment registers:
@@ -494,32 +498,77 @@ start:
     call leer_imagen                       
     
     mov bird_x, 100
-    mov bird_y, 50
+    mov bird_y, 50  
+    
+    ;--------------------------------------------------------
+    ;Dibuja todo la primera vez 
     DIBUJAR_RECT_DATOS 0, 0, ancho, 150, 54 
     DIBUJAR_RECT_DATOS 0, 150, ancho, 50, 10 
-    DIBUJAR_OBSTACULOS_DATOS 220,0,40,3 
+    DIBUJAR_OBSTACULOS_DATOS 220,0,40,3
+    ;-------------------------------------------------------- 
    
     
     dibujar_escena:
         ;INT 21h / AH=0Ch - flush keyboard buffer and read standard input.
         mov ah, 0ch
         mov al, 0
-        int 21h
+        int 21h                                                  
         
-        call rev_col
+        ;--------------------------------------------------------        
+        ;Revisa colision
+ 
+        mov al, choquef ;Si la bandera choquef esta activada, salta la inmunidad
+        cmp al, 1
+        je inmunidad    ;Salta a la Inmunidad
+        
+        call rev_col    ;Si la bandera esta en 0 revisa colision
+        jmp noInm
+         
+      
+        inmunidad:
+        ;Captura el segundo, lo campara con el que esta guardado
+        ; si este llega a ser diferente, acaba de pasar un segundo
+        ;Cuando pasa un segundo, se decrementa el contador de segundos
+        ;Cuando este contador llegue a cero cambia la bandera 
+        ; indicando que se vuelve a revizar si existe colision
+        ;Mientras que la bandera este activada no se revisan colisiones
+        
+        mov coloIn,5          ;Cambia el color de fondo del Bird
+        mov ah, 0x2C
+        int 21h               ;Guarda el Segundo en Dh 
+        cmp choqueseg, dh     ;Si el segundo en choqueseg es diferente al de DH
+        jle restaunSeg        ; resta un segundo al contador
+        mov choqueseg, dh     ;Guarda el segundo en choqueseg
+        jmp salirCon
+        restaunSeg:
+            dec ctrSeg        ;Decrementa el contador
+            jnz salirCon      ;No cambia la bandera hasta que el contador sea cero
+            dec choquef       ;Cambia la bandera, ya no hay inmunidad
+            mov coloIn,54     ;Cambia el color de fondo del bird
+        salirCon:
+        noInm:
+        ;--------------------------------------------------------
         
         
-        ;primero borrar la imagen anterior
-        DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54
+        
+        ;--------------------------------------------------------
+        ;Cada frame pinta el pajarito en azul
+        DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, coloIn
+        ;Cada frame "barre" el pipe
         mov ax, Px
         add ax, 30
         DIBUJAR_RECT_DATOS ax, 0, Pw, 150, 54
-        ;DIBUJAR_RECT_DATOS 0, 0, ancho, 150, 54
-        ;DIBUJAR_OBSTACULOS_DATOS Px,0,Pl,54
-        
+        ;--------------------------------------------------------
+                                                                 
+                                                                 
+        ;--------------------------------------------------------
+        ;Cada frame se detiene un 1/100 segundo
         call sleep
+        ;--------------------------------------------------------
         
         
+        ;--------------------------------------------------------
+        ;Se mueve el bird hacia arriba o hacia abajo
         ;Movimiento pajaro
         mov ax, bird_y
         add ax, bird_v 
@@ -535,16 +584,19 @@ start:
                 lea ax, bird_x
                 mov x_dir, ax
                 call draw_img  
-        
+        ;--------------------------------------------------------
+          
+          
+        ;--------------------------------------------------------
+        ;Mueve el pipe un pixel a la izquierda
         ;Movimiento Obstaculo
         xor ax,ax 
         mov Py,ax
         mov ax, Px
         dec ax
         mov Px, ax 
-        ;add ax,Pw
-        cmp ax,0
-        jge moverObstaculo
+        cmp ax,0              ;Si lleguo al final de la pantalla
+        jge moverObstaculo    ;Lo Pinta de nuevo al lado derecho
         mov ax, ancho
         sub ax,Pw
         mov Px,ax
@@ -552,8 +604,12 @@ start:
         mov ax, 10
         mov Pl, ax                        
             moverObstaculo:
-                DIBUJAR_OBSTACULOS_DATOS Px,Py,Pl,3
-               
+                DIBUJAR_OBSTACULOS_DATOS Px,Py,Pl,3    
+        ;--------------------------------------------------------
+        
+        
+                
+        ;--------------------------------------------------------       
         ;Otras verificaciones    
         mov ah, 01h
         int 16h
@@ -562,7 +618,7 @@ start:
         je salto
         cmp al, 'q'
         jne  dibujar_escena
-        
+        ;--------------------------------------------------------
  
     
     ; wait for any key....    
