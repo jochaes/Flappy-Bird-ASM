@@ -185,6 +185,7 @@ code segment
     ENDM
     
     draw_obstaculos proc
+        push DX
        ;requiere un largo(w)
        ;requiere un w, h, x, y, c
         ;bx <- contador para medir ancho
@@ -209,17 +210,32 @@ code segment
             ; recorrer el rectangulo por ancho
             ; 
             mov ax, Py
-            mul ancho
-            add ax, Px
-            add ax, bx
-            mov di, ax
-            mov al, Pc
-            mov es:[di], al
-            inc bx
-            cmp bx, Pw
-            jne sig_px_obst
-            mov bx, 0
-            inc Py
+            cmp ax, Pl
+            jl  verde    ;Si es menor que PL lo pinta de verde
+                         ;Fijarse si es menor que PL + bird_h + 10
+            mov dx, PL
+            add dx, bird_h
+            add dx, 10
+            cmp ax, dx 
+            jg verde:    ;Si es mayor que PL + bird_h +10 lo pinta verde
+            mov Pc,54    ;Si no, lo pinta azul
+            jmp seguir
+            
+            verde:       ;Cammbia el color a verde 
+                mov Pc,3
+            seguir:
+                mul ancho
+                add ax, Px
+                add ax, bx
+                mov di, ax
+                mov al, Pc
+                mov es:[di], al
+                inc bx
+                cmp bx, Pw
+                jne sig_px_obst
+                mov bx, 0
+                inc Py
+            
             sig_px_obst:
                 loop ciclo_obst
         
@@ -230,40 +246,41 @@ code segment
         ;cuando se alcance el ancho -> se cambia de linea
         ;cuando se hayan pintado todos los pixeles se termina
         
-        ;Calculamos size de la apertura
-        mov bx, 0 
-        
-        mov ax,Pl
-        mov apy,ax
-        
-        mov ax,bird_h
-        add ax,10  
-        
-        mov Ph,ax  
-        mov ax, Pw
-        mul Ph
-        mov cx, ax 
-        
-        ciclo_apertura:
-            ;calcular donde pintar
-            ;posicion de memoria grafica
-            ; 320 x 200
-            ; recorrer el rectangulo por ancho
-            ; 
-            mov ax, apy
-            mul ancho
-            add ax, apx
-            add ax, bx
-            mov di, ax
-            mov al, 54
-            mov es:[di], al
-            inc bx
-            cmp bx, Pw
-            jne sig_px_apertura
-            mov bx, 0
-            inc apy
-            sig_px_apertura:
-                loop ciclo_apertura  
+        ;;Calculamos size de la apertura
+;        mov bx, 0 
+;        
+;        mov ax,Pl
+;        mov apy,ax
+;        
+;        mov ax,bird_h
+;        add ax,10  
+;        
+;        mov Ph,ax  
+;        mov ax, Pw
+;        mul Ph
+;        mov cx, ax 
+;        
+;        ciclo_apertura:
+;            ;calcular donde pintar
+;            ;posicion de memoria grafica
+;            ; 320 x 200
+;            ; recorrer el rectangulo por ancho
+;            ; 
+;            mov ax, apy
+;            mul ancho
+;            add ax, apx
+;            add ax, bx
+;            mov di, ax
+;            mov al, 54
+;            mov es:[di], al
+;            inc bx
+;            cmp bx, Pw
+;            jne sig_px_apertura
+;            mov bx, 0
+;            inc apy
+;            sig_px_apertura:
+;                loop ciclo_apertura
+        pop DX  
         ret    
     endp
     
@@ -377,63 +394,64 @@ code segment
     rev_col proc
         PUSH AX
         PUSH BX
-        
-        mov ax, bird_y
-        add ax, bird_v 
-        add ax,bird_h
-        cmp ax,140
-        jle salga
-        
-       choque:
-        ;activar modo text
-        mov ax, 0x0003
-        int 10h
-        mov ax, 4c00h ; exit to operating system.
-        int 21h     
-        
-        salga:
-         
-        
-;        ;Reviza la colision superior izquierda
-;        suiz:
-;        mov ax, bird_x
-;        add ax, bird_w
-;        cmp ax, Px
-;        jl salga
-;        ;Si es mayor hay que ver si esta entre [Px, Px+30]
-;        mov bx, Px
-;        add bx, 30
-;        cmp ax,bx
-;        jg salga
-;        ;Aca sabemos que esta entre [Px, Px+30]
-;        ;Entonces hay que ver si colisiona arriba o abajo
-;        xor ax,ax
-;        xor bx,bx
-;        mov bx, Pl
+                  
+                  
 ;        mov ax, bird_y
-;        cmp ax,bx
-;        jl verabj
-;        jmp choque 
-;        ;Si es mayor, hay que ver 
+;        add ax, bird_v 
+;        add ax,bird_h
+;        cmp ax,140
+;        jle salga
 ;        
-;        ;Verifica si choca abajo
-;        verabj:
-;        xor ax,ax
-;        xor bx,x
-;        mov bx,Pl
-;        add bx,bird_h
-;        add bx,10
-;        mov ax, bird_y
-;        cmp ax,bx
-;        jg salga
-;        choque:
+;       choque:
 ;        ;activar modo text
 ;        mov ax, 0x0003
 ;        int 10h
 ;        mov ax, 4c00h ; exit to operating system.
-;        int 21h    
+;        int 21h     
 ;        
 ;        salga:
+         
+        
+        ;Reviza la colision superior izquierda
+        suiz:
+        mov ax, bird_x
+        add ax, bird_w
+        cmp ax, Px
+        jl salga
+        ;Si es mayor hay que ver si esta entre [Px, Px+30]
+        mov bx, Px
+        add bx, 30
+        cmp ax,bx
+        jg salga
+        ;Aca sabemos que esta entre [Px, Px+30]
+        ;Entonces hay que ver si colisiona arriba o abajo
+        xor ax,ax
+        xor bx,bx
+        mov bx, Pl
+        mov ax, bird_y
+        cmp ax,bx
+        jg verabj
+        jmp choque 
+        ;Si es mayor, hay que ver 
+        
+        ;Verifica si choca abajo
+        verabj:
+        xor ax,ax
+        xor bx,x
+        mov bx,Pl
+        add bx,bird_h
+        add bx,10
+        mov ax, bird_y
+        cmp ax,bx
+        jl salga
+        choque:
+        ;activar modo text
+        mov ax, 0x0003
+        int 10h
+        mov ax, 4c00h ; exit to operating system.
+        int 21h    
+        
+        salga:
         
         POP BX
         POP AX
@@ -482,12 +500,17 @@ start:
         int 21h
         
         call rev_col
-        call sleep
+        
         
         ;primero borrar la imagen anterior
         DIBUJAR_RECT_DATOS bird_x, bird_y, bird_w, bird_h, 54
+        mov ax, Px
+        add ax, 30
+        DIBUJAR_RECT_DATOS ax, 0, Pw, 150, 54
         ;DIBUJAR_RECT_DATOS 0, 0, ancho, 150, 54
-        DIBUJAR_OBSTACULOS_DATOS Px,0,Pl,54
+        ;DIBUJAR_OBSTACULOS_DATOS Px,0,Pl,54
+        
+        call sleep
         
         
         ;Movimiento pajaro
@@ -514,7 +537,7 @@ start:
         mov Px, ax 
         ;add ax,Pw
         cmp ax,0
-        jg moverObstaculo
+        jge moverObstaculo
         mov ax, ancho
         sub ax,Pw
         mov Px,ax
