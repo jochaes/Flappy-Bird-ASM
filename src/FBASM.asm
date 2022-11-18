@@ -31,6 +31,7 @@ data segment
      
     NombreE db "SCORE.TXT",0
     msgerror db "Error al procesar$"  
+    msgPause db "Presione una Tecla Para Continuar...",13,"$"
     
     ;las usa el rectangulo
     w dw ?
@@ -44,6 +45,7 @@ data segment
     pipe_y dw ?
     
     ;obstaculos
+    
     Pw dw ?  
     Ph dw ?
     Px dw ?
@@ -54,10 +56,17 @@ data segment
     ;apertura
     apx dw ?
     apy dw ?
+    nivel db 0
     
     ;Score
-    hrt dw 1 ;3 Vidas
-    scr db 10 ;Score
+    msgvidas db "",03,"$"
+    msgret   db "",13,"$"
+    msgGameOver db "Fin del Juego",10,13,"$"
+    msgscrfin db "Puntuacion:",10,13,"$"
+    
+    msgscr db 10,13,"Top 10 de Puntuaciones", 10,13,"$"
+    hrt dw 3 ;3 Vidas
+    scr db 0 ;Score
     choquef db 0 ;Si hay Colision
     choqueseg db ?  
     ctrSeg    dw ?
@@ -71,11 +80,13 @@ stack segment
 ends
 
 code segment
-    jmp start
+    jmp start 
     
+;********************************************************    
+;Imprime el numero que este en AX 
     printAX proc
-    ; imprime a la salida est?ndar un n?mero que supone estar en el AX
-    ; supone que es un n?mero positivo y natural en 16 bits.
+    ; imprime a la salida estandar un numero que supone estar en el AX
+    ; supone que es un numero positivo y natural en 16 bits.
     ; lo imprime en decimal.  
     
         push AX
@@ -103,90 +114,126 @@ code segment
         pop AX
         ret
     printAX endP    
-
-    ;Imprime lo que venga en el Buffer
+;########################################################    
+    
+                                            
+                                            
+    
+;********************************************************
+;Imprime lo que venga en el Buffer
+;El buffer contiene el byte que acaba de leer del archivo 
+;Si encuentra un 0, coloca un salto de linea
+;Si encunetra otro numero, entonces lo pinta en pantalla
     printBuff proc
         PUSH dX
         PUSH ax
         xor dx,dx
         
         
+        ; El archivo esta compuesto por bytes, existen bytes de puntuacion 
+        ;  y bytes que indican cuando un byte ya se ha leido.
+        ;El archivo esta escrito de la siguinete manera 
+        ; 01 00 01 00 01 00 01 00 01 00 01 00 01 00 01 00 01 00 
+        ; Los bytes pares guardan siempre 0 y los bytes impares guardan la puntuacion
+    
         
-        
-     ;   mov al, scr
-;        cmp al, dl ;Compara el si scr es mayor
-;        jle siga
-        ;guarde
-         
+        ;Nos damos cuenta si en el buffer viene un 0 
         mov dl, Buffy 
         cmp dl, 0
         jne imprima
-          
+            
+            ;Si es 0 entonces escribe un salto de linea 
             mov ah, 9
             mov dx, offset Buffy
             mov Buffy, 0Ah
             int 21h  
-              
+            ; y un retorno de carry   
             mov Buffy, 0Dh
             int 21h
             jmp salPmsg
        
         imprima:
-            mov al, scr
-            mov ah, Buffy
-            cmp al,ah
-            jle printNumScr 
+            ;Antes de imprimir el numero verifica que 
+            ; si puede guardar el score actual en esa posicion.
+            ;Osea si el Score>Buffer lo guarda en esa posicion en el archivo 
+            ; ya que el score actual es mayor que lo que esta leyendo 
             
+            mov al, scr      ;Mueve el score actual al AL 
+            mov ah, Buffy    ;Mueve el numero que lee del archivo al AH
+            cmp al,ah        
+            jle printNumScr  ;Si el Buffer es mayor lo imprime 
             
-            mov bx, HandleE
-            ;Sobre Escribe el numero si es menor al scr 
-            ;Moverse una posicion atras
-            mov ah, 42h
+            ;Pero si el score es mayor
+            ; vamos a sobre escribir el numero del archivo con el nuevo score   
+            
+            ;Para esto primero hay que mover el puntero a la posiicon anterior, 
+            ; ya que cuando se lee un byte del archivo, el puntero queda en la posicion siguiente, 
+            ; y si se intenta sobreescribir, va a escribir sobre el 00 y no sobre la puntuacion 
+            ; que esta en el archivo. 
+             
+            mov bx, HandleE ;Mueve el Handle al BX
+                            ;Sobre Escribe el numero si es menor al scr 
+                            ;Moverse una posicion atras
+            ;Vamos a utilizar la funcion SEEK 42h de la 21h, con al el 1, lo que nos devuelve el el ax, la posicion 
+            ; actual del puntero 
+            mov ah, 42h     
             mov al, 1
             mov cx,0
             mov dx,0
-            int 21h
-            ;Me tira la posicion actual en  AX
-            dec ax
-            mov dx, ax
+            int 21h         ;Nos devuelve la posicion actual del puntero 
+                            ; osea si estamos tratando de sobreescribir el byte 0, esto nos devuelve la posicion 1, osea el siguiente byte, 
+                            ; por eso devemos devolvernos una posicion atras para sobreescribir el byte 0 del archivo. 
+            
+            
+            dec ax          ;Decrementamos el AX, osea nos devolvemos una posicion 
+            mov dx, ax      ;Indicamos en el DX, el offset que se debe mover el puntero, desde el origen hasta lo que tenga AX,
+                            ; en nuestro ejemplo, le indicamos que se va a mover 0 bytes desde el origen    
             mov ah, 42h
             mov al,0
-            int 21h
+            int 21h         ;Cambia el puntero del archivo a la posicion anterior 
             
-            mov al, scr
-            mov ah, Buffy
+            ;Ahora, como vamos a ingresar un nuevo highscore, devemos desplazar la lista hacia abajo 
+            ;Por lo tanto, guardamos el score anterior y en la siguiente iteracion lo guardamos como un nuevo score,
+            ; pero en la siguiente posicion de la lista
+            mov al, scr     ;Mueve el Score actual al AL
+            mov ah, Buffy   ;Mueve el Buffer al AH 
             ;mov scr2, ah
-            mov scr, ah    
-            mov Buffy, al 
-            mov ah, 40h
-            mov cx, 1
-            lea dx, Buffy
-            mov bx, HandleE
-            int 21h 
+            mov scr, ah     ;Guardamos el Score anterior en local para escribirlo en la siguiente pasada 
+            mov Buffy, al   ;Guardamos el Score actual en el buffer 
+            mov ah, 40h     ;Utilizamos la funcion para guardar 
+            mov cx, 1       ;Indicamos que solo vamos a guaradr un byte
+            lea dx, Buffy   ;Posicion del Buffer en memoria 
+            mov bx, HandleE ;Handle del archivo 
+            int 21h         ;Guardamos el nuevo hig score en el archivo 
             
             
             printNumScr:
+           
+            ;Mandamos a imprimir el numero que esta en el buffer 
             xor ax,ax
-            mov al,Buffy 
-            
+            mov al,Buffy             
             call printAX
-            
-           ; mov dx, offset Buffy
-;            int 21h
         
         salPmsg:
         pop ax
         POP dX
         ret
     endp
+;########################################################    
     
-    ;Abre un Archivo 
+                                            
+                                            
+    
+;********************************************************
+;Abre el archivo con el nombre guardao en el HandleE
+;Lo abre en modo 2, lectura y escritura, ya que lo vamos a ir
+; modificando sobre la marcha 
     abrirFile proc
         push ax
         push dx
         
-        mov ah, 3Dh ; abrir el archivo de score 
-        mov al, 2  ; codigo 2 para abrirlo como lectura escritura
+        mov ah, 3Dh   ; abrir el archivo de score 
+        mov al, 2     ; codigo 2 para abrirlo como lectura escritura
         lea dx, nombreE
         int 21h
         mov handleE, ax 
@@ -195,7 +242,13 @@ code segment
         pop ax
         ret
     endp
+;########################################################    
     
+                                            
+                                            
+    
+;********************************************************
+;Funcion para cerrar el archivo, se ejecuta antes de cerrar el programa 
     cerrarFile proc 
     ;Cierra el archivo 
         push ax
@@ -211,18 +264,46 @@ code segment
         
     endp
     
-    ;Imprime el Score 
+;########################################################    
+;Imprime un mensaje en pantalla
+;Debe venir la "variable" en el dx    
+    printMSG proc
+        push dx
+        push ax
+       ;Si existe algun error muestra un mensaje  
+        
+        mov ah, 09h
+        int 21h
+            
+        pop ax
+        pop dx
+        ret
+    endp                                          
+                                            
+    
+;********************************************************
+;Cuando el pajarito pierde las 3 vidas, se llama este procedimiento 
+; que se encarga de imprimir el Score Board y ademas lo actualiza,
+; cuando el score actual es un highscore   
     printScore proc 
         xor ax,ax
         xor cx,cx
         xor dx,dx
         xor bx,bx
         
+        ;Abre el Archivo que contiene los 10 scores mas altos 
+        ; El archivo esta compuesto por bytes, existen bytes de puntuacion 
+        ;  y bytes que indican cuando un byte ya se ha leido.
+        ;El archivo esta escrito de la siguinete manera 
+        ; 01 00 01 00 01 00 01 00 01 00 01 00 01 00 01 00 01 00 
+        ; Los bytes pares guardan siempre 0 y los bytes impares guardan la puntuacion
+        
+        ;Aca se abre el archivo
         call abrirFile 
         proceso:
     
-          mov ah, 3Fh  ; leemos el caracter del archivo
-          mov cx, 1
+          mov ah, 3Fh       ;Leemos el caracter del archivo
+          mov cx, 1         ;Cada vez que se lee, el puntero se posiciona en el siguiente byte 
           lea dx, Buffy
           mov bx, handleE
           int 21h
@@ -234,25 +315,27 @@ code segment
      
 
         escribir:
-        ;Escribe en pantalla 
+        ;Escribe en pantalla         
+        call printBuff       
         
-        call printBuff
         jmp proceso
         
         cerrar:      
             call cerrarFile 
             jmp salirPscr
             
-        error: lea dx, msgerror
-            mov ah, 09h
-            int 21h
+        error:
+            ;Si existe algun error muestra un mensaje
+            lea dx, msgerror
+            call printMSG   
     
         salirPscr:
     
        ret
         
     endp    
-                                                   
+;########################################################    
+                                                  
     
 ;********************************************************   
 ;Procedimiento que lee la informacion de la imagen
@@ -581,25 +664,17 @@ code segment
     rev_col proc
         PUSH AX
         PUSH BX
-                  
-                  
-;        mov ax, bird_y
-;        add ax, bird_v 
-;        add ax,bird_h
-;        cmp ax,140
-;        jle salga
-;        
-;       choque:
-;        ;activar modo text
-;        mov ax, 0x0003
-;        int 10h
-;        mov ax, 4c00h ; exit to operating system.
-;        int 21h     
-;        
-;        salga:
-         
+        Push CX          
         
-        ;Reviza la colision superior izquierda
+        ;Revisa si el pajarito pega con el suelo                  
+        mov ax, bird_y
+        add ax, bird_v 
+        add ax,bird_h
+        cmp ax,149
+        jle suiz
+        jmp choque
+                 
+        ;Revisa la colision superior izquierda
         suiz:
         mov ax, bird_x
         add ax, bird_w
@@ -616,6 +691,7 @@ code segment
         xor ax,ax
         xor bx,bx
         mov bx, Pl
+        ;sub bx, 10
         mov ax, bird_y
         cmp ax,bx
         jg verabj
@@ -635,10 +711,12 @@ code segment
         
         choque:
         ;Decrementar 1 vida
+        
+       
         inc choquef    ;Activa la Bandera de Choque
         mov ctrSeg, 40 ;Va a esperar 2 segundos antes de volver a revizar la colision 
-        dec hrt        ;Decrementa 1 Vida 
-        jnz salga
+        dec hrt        ;Decrementa 1 Vida  
+        jnz corazones
         
         ;Pantalla de Score
         
@@ -646,6 +724,22 @@ code segment
         mov ax, 0x0003
         int 10h        
         
+        lea dx,msgGameOver
+        call printMSG
+        
+        lea dx, msgscrfin
+        call printMSG
+        
+        xor ax,ax
+        mov al, scr
+        call printax
+        
+        lea dx, msgscr
+        call printMSG
+        
+        
+        
+             
         call printScore ;Imprime el Score
         
         mov ax, 4c00h ; exit to operating system.
@@ -656,7 +750,20 @@ code segment
         sumPto:
         inc scr
         
+        corazones:
+        xor cx,cx
+        
+        ;Imprime los corazones 
+        mov cx, hrt
+        printVidas:
+        lea dx, msgvidas
+        call printMSG 
+        loop printVidas
+        lea dx, msgret
+        call printMSG
         salga:
+        
+        POP CX
         POP BX
         POP AX
         RET 
@@ -700,8 +807,8 @@ start:
     DIBUJAR_RECT_DATOS 0, 0, ancho, 150, 54 
     DIBUJAR_RECT_DATOS 0, 150, ancho, 50, 10 
     DIBUJAR_OBSTACULOS_DATOS 220,0,40,3
-    ;-------------------------------------------------------- 
-   
+    ;--------------------------------------------------------
+     
     
     dibujar_escena:
         ;INT 21h / AH=0Ch - flush keyboard buffer and read standard input.
@@ -728,7 +835,7 @@ start:
         ; indicando que se vuelve a revizar si existe colision
         ;Mientras que la bandera este activada no se revisan colisiones
         
-        mov coloIn,5          ;Cambia el color de fondo del Bird
+        mov coloIn,34         ;Cambia el color de fondo del Bird
         mov ah, 0x2C
         int 21h               ;Guarda el Segundo en Dh 
         cmp choqueseg, dh     ;Si el segundo en choqueseg es diferente al de DH
@@ -797,26 +904,49 @@ start:
         mov Px,ax
         ;Random del PL
         
-        
-        mov ax, 10
+        mov dl, nivel
+        mov ax, 50
+        mul dx
+        cmp ax, 150
+        jge resNivel  
         mov Pl, ax
-        
+        inc nivel
+        jmp moverObstaculo        
+        resNivel:
+        mov nivel, 0
+        mov ax,0
+        mov Pl,ax       
                                 
             moverObstaculo:
                 DIBUJAR_OBSTACULOS_DATOS Px,Py,Pl,3    
         ;--------------------------------------------------------
         
+            
         
-                
         ;--------------------------------------------------------       
         ;Otras verificaciones    
         mov ah, 01h
         int 16h
         jz dibujar_escena 
-        cmp al,20h
+        cmp al,20h    ;BARRA ESPACIO
         je salto
-        cmp al, 'q'
+        cmp al,57h    ;W
+        je salto
+        cmp al,51h    ;Q
         jne  dibujar_escena
+        ;Pausa
+        
+        lea dx, msgPause
+        call printmsg
+        
+        mov ah, 0ch
+        mov al, 0
+        int 21h
+         
+        mov ah, 7
+	    int 21h
+	    DIBUJAR_RECT_DATOS 0, 0, ancho, 150, 54
+	    jmp dibujar_escena
         ;--------------------------------------------------------
  
     
