@@ -22,7 +22,15 @@ data segment
     y_val dw ?
     handle dw ?
     
-    ultimo_s db ?  
+    ultimo_s db ?
+    ;Archivos 
+    HandleE dw ?    ; Handle para el archivo de entrada 
+
+    Buffy db ?      ; procesaremos caracter por caracter
+    buff  db "$"
+     
+    NombreE db "SCORE.TXT",0
+    msgerror db "Error al procesar$"  
     
     ;las usa el rectangulo
     w dw ?
@@ -48,12 +56,14 @@ data segment
     apy dw ?
     
     ;Score
-    hrt dw 4 ;3 Vidas
-    scr dw 0 ;Score
+    hrt dw 1 ;3 Vidas
+    scr db 10 ;Score
     choquef db 0 ;Si hay Colision
     choqueseg db ?  
     ctrSeg    dw ?
     coloIn    db 54
+    scr2      db ?
+
 ends
 
 stack segment
@@ -61,7 +71,188 @@ stack segment
 ends
 
 code segment
-    jmp start                                               
+    jmp start
+    
+    printAX proc
+    ; imprime a la salida est?ndar un n?mero que supone estar en el AX
+    ; supone que es un n?mero positivo y natural en 16 bits.
+    ; lo imprime en decimal.  
+    
+        push AX
+        push BX
+        push CX
+        push DX
+    
+        xor cx, cx
+        mov bx, 10
+    ciclo1PAX: xor dx, dx
+        div bx
+        push dx
+        inc cx
+        cmp ax, 0
+        jne ciclo1PAX
+        mov ah, 02h
+    ciclo2PAX: pop DX
+        add dl, 30h
+        int 21h
+        loop ciclo2PAX
+    
+        pop DX
+        pop CX
+        pop BX
+        pop AX
+        ret
+    printAX endP    
+
+    ;Imprime lo que venga en el Buffer
+    printBuff proc
+        PUSH dX
+        PUSH ax
+        xor dx,dx
+        
+        
+        
+        
+     ;   mov al, scr
+;        cmp al, dl ;Compara el si scr es mayor
+;        jle siga
+        ;guarde
+         
+        mov dl, Buffy 
+        cmp dl, 0
+        jne imprima
+          
+            mov ah, 9
+            mov dx, offset Buffy
+            mov Buffy, 0Ah
+            int 21h  
+              
+            mov Buffy, 0Dh
+            int 21h
+            jmp salPmsg
+       
+        imprima:
+            mov al, scr
+            mov ah, Buffy
+            cmp al,ah
+            jle printNumScr 
+            
+            
+            mov bx, HandleE
+            ;Sobre Escribe el numero si es menor al scr 
+            ;Moverse una posicion atras
+            mov ah, 42h
+            mov al, 1
+            mov cx,0
+            mov dx,0
+            int 21h
+            ;Me tira la posicion actual en  AX
+            dec ax
+            mov dx, ax
+            mov ah, 42h
+            mov al,0
+            int 21h
+            
+            mov al, scr
+            mov ah, Buffy
+            ;mov scr2, ah
+            mov scr, ah    
+            mov Buffy, al 
+            mov ah, 40h
+            mov cx, 1
+            lea dx, Buffy
+            mov bx, HandleE
+            int 21h 
+            
+            
+            printNumScr:
+            xor ax,ax
+            mov al,Buffy 
+            
+            call printAX
+            
+           ; mov dx, offset Buffy
+;            int 21h
+        
+        salPmsg:
+        pop ax
+        POP dX
+        ret
+    endp
+    
+    ;Abre un Archivo 
+    abrirFile proc
+        push ax
+        push dx
+        
+        mov ah, 3Dh ; abrir el archivo de score 
+        mov al, 2  ; codigo 2 para abrirlo como lectura escritura
+        lea dx, nombreE
+        int 21h
+        mov handleE, ax 
+        
+        pop dx
+        pop ax
+        ret
+    endp
+    
+    cerrarFile proc 
+    ;Cierra el archivo 
+        push ax
+        push bx
+        
+        mov ah, 3Eh ; cerrar el archivo de entrada
+        mov bx, handleE
+        int 21h
+        
+        pop bx
+        pop ax
+        ret
+        
+    endp
+    
+    ;Imprime el Score 
+    printScore proc 
+        xor ax,ax
+        xor cx,cx
+        xor dx,dx
+        xor bx,bx
+        
+        call abrirFile 
+        proceso:
+    
+          mov ah, 3Fh  ; leemos el caracter del archivo
+          mov cx, 1
+          lea dx, Buffy
+          mov bx, handleE
+          int 21h
+          jnc esfin  
+          jmp error
+        esfin:  
+          cmp ax, 1   ; averigua si llego al final del archivo
+          jne cerrar      
+     
+
+        escribir:
+        ;Escribe en pantalla 
+        
+        call printBuff
+        jmp proceso
+        
+        cerrar:      
+            call cerrarFile 
+            jmp salirPscr
+            
+        error: lea dx, msgerror
+            mov ah, 09h
+            int 21h
+    
+        salirPscr:
+    
+       ret
+        
+    endp    
+                                                   
     
 ;********************************************************   
 ;Procedimiento que lee la informacion de la imagen
@@ -450,9 +641,13 @@ code segment
         jnz salga
         
         ;Pantalla de Score
+        
         ;activar modo text
         mov ax, 0x0003
-        int 10h
+        int 10h        
+        
+        call printScore ;Imprime el Score
+        
         mov ax, 4c00h ; exit to operating system.
         int 21h      
         
@@ -601,8 +796,12 @@ start:
         sub ax,Pw
         mov Px,ax
         ;Random del PL
+        
+        
         mov ax, 10
-        mov Pl, ax                        
+        mov Pl, ax
+        
+                                
             moverObstaculo:
                 DIBUJAR_OBSTACULOS_DATOS Px,Py,Pl,3    
         ;--------------------------------------------------------
