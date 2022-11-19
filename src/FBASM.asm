@@ -26,7 +26,7 @@ data segment
     ;Archivos 
     HandleE dw ?    ; Handle para el archivo de entrada 
 
-    Buffy db ?      ; procesaremos caracter por caracter
+    Buffy db ?      ; procesaremos caracter por caracter                
     buff  db "$"
      
     NombreE db "SCORE.TXT",0
@@ -606,7 +606,9 @@ code segment
         int 16h
          
         ;verifcar que sea espacio
-        cmp al,20h; "espacio"
+        cmp al,57h; "W"
+        JE pressSpace  
+        cmp al,77h; "w"   
         JE pressSpace
             
         ;metodo para que el pajaro salte
@@ -691,7 +693,7 @@ code segment
         xor ax,ax
         xor bx,bx
         mov bx, Pl
-        ;sub bx, 10
+        sub bx, 5
         mov ax, bird_y
         cmp ax,bx
         jg verabj
@@ -928,10 +930,10 @@ start:
         mov ah, 01h
         int 16h
         jz dibujar_escena 
-        cmp al,20h    ;BARRA ESPACIO
-        je salto
         cmp al,57h    ;W
-        je salto
+        je salto         
+        cmp al,77h    ;w
+        JE salto
         cmp al,51h    ;Q
         jne  dibujar_escena
         ;Pausa
